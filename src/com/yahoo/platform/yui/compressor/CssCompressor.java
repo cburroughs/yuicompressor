@@ -11,6 +11,12 @@ package com.yahoo.platform.yui.compressor;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -24,6 +30,73 @@ public class CssCompressor {
         while ((c = in.read()) != -1) {
             srcsb.append((char) c);
         }
+    }
+
+    
+    protected String mergeRules(String inputCss) {
+
+        Map ruleMap = new HashMap();
+        StringBuffer mergedCss = new StringBuffer();
+
+        Pattern p = Pattern.compile("([^\\{]*)\\{(.*?)\\}");
+        Matcher m = p.matcher(inputCss);
+
+        while (m.find()) {
+            String selectors = m.group(1);
+            String rules = m.group(2);
+
+            rules = compressDimensions(rules);
+
+            if (ruleMap.containsKey(rules)) {
+                ruleMap.put(rules, ruleMap.get(rules) + "," + selectors);
+            }
+            else {
+                ruleMap.put(rules, selectors);
+            }
+        }
+
+        String rule;
+        for (Iterator i = ruleMap.keySet().iterator(); i.hasNext();) {
+            rule = (String)i.next();
+            mergedCss.append(ruleMap.get(rule)+"{"+rule+"}");
+        }
+
+        return mergedCss.toString();
+    }
+
+    protected String removeDuplicateProperties(String inputCssRule) {
+
+        StringBuffer cssRule = new StringBuffer();
+
+        Set ruleSet = new HashSet(Arrays.asList(inputCssRule.split(";")));
+
+        for (Iterator i = ruleSet.iterator(); i.hasNext();) {
+            cssRule.append((String)i.next() + ";");
+        }
+
+        return cssRule.toString();
+    }
+    
+    protected String compressDimensions(String inputCssRule) {
+        Pattern p = Pattern.compile("(border|margin):(\\d+(?:\\p{Alpha}*))(\\2){3}");
+        Matcher m;
+
+        StringBuffer cssRule = new StringBuffer();
+
+        for (String rule: inputCssRule.split(";")) {
+            
+            String condensedRule = rule.replaceAll(" +", "");
+            m = p.matcher(condensedRule);
+            if (m.find()) {
+                cssRule.append(condensedRule.substring(0, m.start()));
+                cssRule.append(m.group(1) + ':' + m.group(2) + ';');
+            }
+            else {
+                cssRule.append(rule + ';');
+            }
+        }
+
+        return cssRule.toString();
     }
 
     public void compress(Writer out, int linebreakpos)
@@ -190,6 +263,9 @@ public class CssCompressor {
 
         // Trim the final string (for any leading or trailing white spaces)
         css = css.trim();
+
+        // Merge the classes
+        css = mergeRules(css);
 
         // Write the output...
         out.write(css);
