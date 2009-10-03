@@ -11,6 +11,12 @@ package com.yahoo.platform.yui.compressor;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 
@@ -147,6 +153,17 @@ public class CssCompressor {
         p = Pattern.compile("([^\"'=\\s])(\\s*)#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])");
         m = p.matcher(css);
         sb = new StringBuffer();
+
+        Map colorMap = new HashMap();
+        colorMap.put("C0C0C0", "silver");
+        colorMap.put("800000", "maroon");
+        colorMap.put("800080", "purple");
+        colorMap.put("008000", "green");
+        colorMap.put("808000", "olive");
+        colorMap.put("000080", "navy");
+        colorMap.put("008080", "teal");
+        
+
         while (m.find()) {
             // Test for AABBCC pattern
             if (m.group(3).equalsIgnoreCase(m.group(4)) &&
@@ -154,11 +171,23 @@ public class CssCompressor {
                     m.group(7).equalsIgnoreCase(m.group(8))) {
                 m.appendReplacement(sb, m.group(1) + m.group(2) + "#" + m.group(3) + m.group(5) + m.group(7));
             } else {
+                // Test if hex code can be smaller as a named colour
+                String hex = m.group(3) + m.group(4) + m.group(5) + m.group(6) + m.group(7) + m.group(8);
+                if (colorMap.containsKey(hex)) {
+                    m.appendReplacement(sb, m.group(1) + m.group(2) + "#" + colorMap.get(hex));
+                }
+                else {
                 m.appendReplacement(sb, m.group());
             }
         }
+        }
         m.appendTail(sb);
         css = sb.toString();
+
+        // Replace named colors where they are shorter hex values
+        css.replaceAll(":black", ":#000");
+        css.replaceAll(":white", ":#FFF");
+        css.replaceAll(":yellow", ":#FF0");
 
         // Remove empty rules.
         css = css.replaceAll("[^\\}]+\\{;\\}", "");
