@@ -66,8 +66,8 @@ public class CssCompressor {
 
         css = sb.toString();
 
-        // Normalize all whitespace strings to single spaces. Easier to work with that way.
-        css = css.replaceAll("\\s+", " ");
+        // Normalize (almost) all whitespace strings to single spaces.
+        css = normalizeWhiteSpace(css);
 
         // Make a pseudo class for the Box Model Hack
         css = css.replaceAll("\"\\\\\"}\\\\\"\"", "___PSEUDOCLASSBMH___");
@@ -194,4 +194,33 @@ public class CssCompressor {
         // Write the output...
         out.write(css);
     }
+
+
+    // Normalize all white-space strings to single spaces. Easier to
+    // work with that way.  But do not do this inside special /*!
+    // comments
+    // todo: Will there be too many corner cases, switch to a real tokenizer?
+    // todo: _ java convention?
+    protected String normalizeWhiteSpace(String css_str) {
+        String[] lines = css_str.split("\\r?\\n");
+        boolean inSpecialComment = false;
+        String new_css = ""; // todo: faster as some sort of string builder thing?
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            // Note that this will not work if the special comment does not start a line
+            if (line.indexOf("/*!") != -1) {
+                inSpecialComment = true;
+            }
+            else if (line.indexOf("*/") > -1 && inSpecialComment) {
+                inSpecialComment = false;
+            }
+            if (!inSpecialComment) {
+                System.out.println(line);
+                line = line.replaceAll("\\s+", " ");
+            }
+            new_css += line;
+        }
+        return new_css;
+    }
+
 }
